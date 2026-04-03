@@ -12,6 +12,7 @@ module = "./src/Extension.tsx"
 
 [extensions.capabilities]
 api_access = true
+network_access = true
 
 [extensions.settings]
   [[extensions.settings.fields]]
