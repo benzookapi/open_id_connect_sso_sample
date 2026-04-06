@@ -182,19 +182,9 @@ function profileMatchesCustomer(
 
 // -- Extension component --
 
-// Interval (ms) for Phase B polling while the profile page is open
-const POLL_INTERVAL_MS = 10_000;
-
 function SsoProfileSync() {
   useEffect(() => {
     void run();
-
-    // Poll for customer-initiated changes while the page stays open
-    const timer = setInterval(() => {
-      void pollPhaseB();
-    }, POLL_INTERVAL_MS);
-
-    return () => clearInterval(timer);
 
     async function run() {
       try {
@@ -240,45 +230,26 @@ function SsoProfileSync() {
           await shopify.storage.write(NAV_GUARD_KEY, "1");
           shopify.navigation.navigate("shopify:customer-account/profile");
         } else {
-          // ── Phase B: Change guard ─────────────────────────────────────────
-          await revertIfDrifted(stored);
+          // ── Phase B: Revert if customer edited profile ────────────────────
+          const customer = await queryCustomer();
+          if (!customer) {
+            console.error("[sso-sync] failed to query customer");
+            return;
+          }
+
+          if (!profileMatchesCustomer(stored, customer)) {
+            console.log("[sso-sync] drift detected — reverting to SSO data");
+            await updateCustomerName(stored.given_name, stored.family_name);
+            await upsertAddress(
+              customer.defaultAddress?.id ?? null,
+              stored.address
+            );
+            await shopify.storage.write(NAV_GUARD_KEY, "1");
+            shopify.navigation.navigate("shopify:customer-account/profile");
+          }
         }
       } catch (err) {
         console.error("[sso-sync] unexpected error:", err);
-      }
-    }
-
-    // Called by the polling interval to detect customer-initiated profile edits
-    async function pollPhaseB() {
-      try {
-        const syncEnabled = shopify.settings.value?.sync_enabled ?? true;
-        if (!syncEnabled) return;
-
-        const stored = await shopify.storage.read<SsoProfile>(STORAGE_KEY);
-        if (!stored) return; // Phase A not yet complete
-
-        await revertIfDrifted(stored);
-      } catch (err) {
-        console.error("[sso-sync] poll error:", err);
-      }
-    }
-
-    async function revertIfDrifted(stored: SsoProfile) {
-      const customer = await queryCustomer();
-      if (!customer) {
-        console.error("[sso-sync] failed to query customer");
-        return;
-      }
-
-      if (!profileMatchesCustomer(stored, customer)) {
-        console.log("[sso-sync] drift detected — reverting to SSO data");
-        await updateCustomerName(stored.given_name, stored.family_name);
-        await upsertAddress(
-          customer.defaultAddress?.id ?? null,
-          stored.address
-        );
-        await shopify.storage.write(NAV_GUARD_KEY, "1");
-        shopify.navigation.navigate("shopify:customer-account/profile");
       }
     }
   }, []);
