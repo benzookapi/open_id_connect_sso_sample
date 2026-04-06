@@ -68,7 +68,7 @@ In the Shopify admin or Partner Dashboard, enter the following SSO provider sett
 | Discovery URL | `https://<your-render-url>/.well-known/openid-configuration` |
 | Client ID | Same value as `CLIENT_ID` in your environment |
 | Client Secret | Same value as `CLIENT_SECRET` in your environment |
-| Additional scopes | *(leave blank)* |
+| Additional scopes | `profile` |
 | Logout redirect URI parameter name | `post_logout_redirect_uri` |
 
 ## Demo

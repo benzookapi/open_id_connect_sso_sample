@@ -1,10 +1,12 @@
 // Customer Account UI Extension — SSO Profile Sync
-// Renders invisibly on the Profile page and performs two-phase sync
-// when the merchant setting "sync_enabled" is true (default: true).
+// Renders invisibly on the Profile page and runs once on mount (no polling).
+// Sync is performed when the merchant setting "sync_enabled" is true (default: true).
 //
-//   Phase A (storage empty): Fetch SSO data, push to Customer Account API, store data, navigate.
-//   Phase B (storage present): Query current customer data, compare with stored SSO data,
-//                              revert any changes by re-applying SSO data, then navigate.
+//   Phase A (storage empty): Fetch SSO data via /userinfo, push to Customer Account API,
+//                            cache the profile in storage, then navigate to refresh the page.
+//   Phase B (storage present): Query current customer data, compare with cached SSO data,
+//                              revert any customer-initiated changes by re-applying SSO data,
+//                              then navigate to refresh the page.
 //
 // Navigation guard (sso_nav_guard) prevents an infinite loop after Phase A/B redirects.
 // Toggle is controlled via the extension setting in the Shopify merchant admin (not customer-facing).
