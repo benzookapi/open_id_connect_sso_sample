@@ -115,13 +115,17 @@ async function updateCustomerName(
 
 async function upsertAddress(
   addressId: string | null,
-  addr: OidcAddress
+  addr: OidcAddress,
+  firstName: string,
+  lastName: string
 ): Promise<void> {
   const lines = addr.street_address.split("\n");
   const address1 = lines[0] ?? "";
   const address2 = lines[1] ?? "";
 
   const addressInput = {
+    firstName,
+    lastName,
     address1,
     address2,
     city: addr.locality,
@@ -240,7 +244,7 @@ function SsoProfileSync() {
           }
 
           await updateCustomerName(profile.given_name, profile.family_name);
-          await upsertAddress(customer.defaultAddress?.id ?? null, profile.address);
+          await upsertAddress(customer.defaultAddress?.id ?? null, profile.address, profile.given_name, profile.family_name);
 
           await shopify.storage.write(STORAGE_KEY, profile);
           await shopify.storage.write(NAV_GUARD_KEY, "1");
@@ -259,11 +263,14 @@ function SsoProfileSync() {
             await updateCustomerName(stored.given_name, stored.family_name);
             await upsertAddress(
               customer.defaultAddress?.id ?? null,
-              stored.address
+              stored.address,
+              stored.given_name,
+              stored.family_name
             );
             await shopify.storage.write(NAV_GUARD_KEY, "1");
             await shopify.storage.write(SHOW_TOAST_KEY, "1");
-            shopify.navigation.navigate("shopify:customer-account/profile");
+            // Use reload instead of navigate() — navigating to the same page is a SPA no-op
+            window.location.reload();
           }
         }
       } catch (err) {
