@@ -1,11 +1,20 @@
 // Shopify App OAuth entry point.
 // If an Admin API token is already cached for this store, renders the app home.
 // Otherwise, initiates the Shopify OAuth Authorization Code Grant flow.
+//
+// All HTML responses must include:
+//   Content-Security-Policy: frame-ancestors https://admin.shopify.com https://<shop>.myshopify.com;
+// to allow Shopify Admin to embed this app in an iframe.
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { createHmac } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { hasShopToken, storePendingNonce } from "~/lib/shop-token-cache.server";
+
+function frameAncestorsHeader(shop: string | null): string {
+  const shopOrigin = shop ? `https://${shop}` : "";
+  return `frame-ancestors https://admin.shopify.com${shopOrigin ? ` ${shopOrigin}` : ""};`;
+}
 
 // Verify Shopify HMAC signature on incoming query params.
 // All params except "hmac" are sorted and joined, then signed with SHOPIFY_API_SECRET.
@@ -40,7 +49,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!shop) {
     return new Response(
       `<html><body><p>Please install this app from the Shopify Partner Dashboard.</p></body></html>`,
-      { status: 200, headers: { "Content-Type": "text/html" } }
+      { status: 200, headers: { "Content-Type": "text/html", "Content-Security-Policy": "frame-ancestors 'none';" } }
     );
   }
 
@@ -50,12 +59,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return new Response("HMAC verification failed", { status: 403 });
   }
 
-  // Admin API token already cached for this store
+  // Admin API token already cached for this store — render app home inside Shopify Admin iframe
   if (hasShopToken(shop)) {
     console.log("[auth] shop already authorized:", shop);
+    const csp = frameAncestorsHeader(shop);
     return new Response(
-      `<html><body><p>App is installed for <strong>${shop}</strong>. Admin API access token is cached.</p></body></html>`,
-      { status: 200, headers: { "Content-Type": "text/html" } }
+      `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SSO Sample App</title>
+  <meta name="shopify-api-key" content="${process.env.SHOPIFY_API_KEY ?? ""}" />
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+</head>
+<body>
+  <h2>SSO Sample App</h2>
+  <p>Admin API access token is active for <strong>${shop}</strong>.</p>
+  <p>The app is ready to resolve customer GIDs to emails via the Admin API.</p>
+</body>
+</html>`,
+      { status: 200, headers: { "Content-Type": "text/html", "Content-Security-Policy": csp } }
     );
   }
 
