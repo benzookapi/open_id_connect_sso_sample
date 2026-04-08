@@ -50,9 +50,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const { payload } = await jwtVerify(token, secretKey, {
         algorithms: ["HS256"],
       });
-      sub = payload.sub;
-      // Shopify session tokens carry dest/sid but not email — derive a placeholder
-      const dest = (payload as Record<string, unknown>).dest as string | undefined;
+      // Shopify session tokens do not include a `sub` claim — use `jti` as identifier
+      const p = payload as Record<string, unknown>;
+      sub = (payload.sub ?? p.jti ?? p.aud) as string | undefined;
+      const dest = p.dest as string | undefined;
       try {
         email = dest ? `customer@${new URL(dest).hostname}` : undefined;
       } catch {
