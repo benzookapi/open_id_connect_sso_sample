@@ -15,16 +15,14 @@ const corsHeaders = {
 };
 
 function unauthorized() {
-  return Response.json(
-    { error: "invalid_token" },
-    {
-      status: 401,
-      headers: {
-        ...corsHeaders,
-        "WWW-Authenticate": 'Bearer error="invalid_token"',
-      },
-    }
-  );
+  return new Response(JSON.stringify({ error: "invalid_token" }), {
+    status: 401,
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders,
+      "WWW-Authenticate": 'Bearer error="invalid_token"',
+    },
+  });
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -55,7 +53,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       sub = payload.sub;
       // Shopify session tokens carry dest/sid but not email — derive a placeholder
       const dest = (payload as Record<string, unknown>).dest as string | undefined;
-      email = dest ? `customer@${new URL(dest).hostname}` : undefined;
+      try {
+        email = dest ? `customer@${new URL(dest).hostname}` : undefined;
+      } catch {
+        email = undefined;
+      }
       console.log("[userinfo] verified via HS256 (Shopify session token) | payload:", JSON.stringify(payload));
     } catch (err) {
       console.log("[userinfo] HS256 verification failed, falling back to RS256 |", (err as Error).message);
@@ -97,5 +99,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
   console.log("[userinfo] response:", JSON.stringify(responseBody));
 
-  return Response.json(responseBody, { headers: corsHeaders });
+  return new Response(JSON.stringify(responseBody), {
+    status: 200,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
 }
