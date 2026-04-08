@@ -86,6 +86,9 @@ async function queryCustomer(): Promise<CustomerData | null> {
     }),
   });
   const json = await res.json();
+  if (json?.errors) {
+    console.error("[sso-sync] queryCustomer errors:", JSON.stringify(json.errors));
+  }
   return json?.data?.customer ?? null;
 }
 
