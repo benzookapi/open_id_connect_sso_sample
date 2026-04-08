@@ -1,14 +1,12 @@
 services:
   - type: web
-    name: sso-test
+    name: open-id-connect-sso-sample
     env: node
-    region: singapore
+    region: oregon
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm run build
+    buildCommand: pnpm install && pnpm run build
     startCommand: pnpm run start
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: SESSION_SECRET
         generateValue: true
       # ★ Set the following manually in Render Dashboard
