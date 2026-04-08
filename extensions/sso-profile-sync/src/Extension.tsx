@@ -171,24 +171,35 @@ function profileMatchesCustomer(
   customer: CustomerData
 ): boolean {
   // Normalize null to "" for comparison — Customer API returns null for empty fields
-  if ((customer.firstName ?? "") !== profile.given_name) return false;
-  if ((customer.lastName ?? "") !== profile.family_name) return false;
-
-  const addr = customer.defaultAddress;
-  if (!addr) return false;
-
   const lines = profile.address.street_address.split("\n");
   const address1 = lines[0] ?? "";
   const address2 = lines[1] ?? "";
 
-  return (
-    (addr.address1 ?? "") === address1 &&
-    (addr.address2 ?? "") === address2 &&
-    (addr.city ?? "") === profile.address.locality &&
-    (addr.zoneCode ?? "") === profile.address.region &&
-    (addr.zip ?? "") === profile.address.postal_code &&
-    (addr.territoryCode ?? "") === profile.address.country
-  );
+  const checks: Array<{ field: string; sso: string; customer: string }> = [
+    { field: "firstName",    sso: profile.given_name,          customer: customer.firstName ?? "" },
+    { field: "lastName",     sso: profile.family_name,         customer: customer.lastName ?? "" },
+    { field: "address1",     sso: address1,                    customer: customer.defaultAddress?.address1 ?? "" },
+    { field: "address2",     sso: address2,                    customer: customer.defaultAddress?.address2 ?? "" },
+    { field: "city",         sso: profile.address.locality,    customer: customer.defaultAddress?.city ?? "" },
+    { field: "zoneCode",     sso: profile.address.region,      customer: customer.defaultAddress?.zoneCode ?? "" },
+    { field: "zip",          sso: profile.address.postal_code, customer: customer.defaultAddress?.zip ?? "" },
+    { field: "territoryCode",sso: profile.address.country,     customer: customer.defaultAddress?.territoryCode ?? "" },
+  ];
+
+  if (!customer.defaultAddress) {
+    console.log("[sso-sync] mismatch: no defaultAddress on customer");
+    return false;
+  }
+
+  const diffs = checks.filter((c) => c.sso !== c.customer);
+  if (diffs.length > 0) {
+    for (const d of diffs) {
+      console.log(`[sso-sync] mismatch: ${d.field} | sso="${d.sso}" customer="${d.customer}"`);
+    }
+    return false;
+  }
+
+  return true;
 }
 
 // -- Extension component --
