@@ -57,17 +57,17 @@ export interface ShopifyClaimsProfile {
 export function getShopifyClaimsProfile(_userId: string): ShopifyClaimsProfile {
   const ts = new Date().toISOString();
   return {
-    given_name: "Taro Claims",
+    given_name: "Taro SSO",
     family_name: "Yamada",
     addresses: [
       {
-        address1: "1-1-1 Claims Chiyoda",
+        address1: "1-1-1 SSO Chiyoda",
         address2: `Chiyoda Building 101 (${ts})`,
         city: "Chiyoda-ku",
         province_code: "JP-13",
         country_code: "JP",
         zip: "1000001",
-        first_name: "Taro Claims",
+        first_name: "Taro SSO",
         last_name: "Yamada",
         phone: "+81312345678",
         default: false,

@@ -25,10 +25,12 @@ declare const shopify: {
   };
   navigation: { navigate(url: string): void };
   settings: { value: Record<string, string | number | boolean | undefined> | null };
+  toast: { show(message: string, options?: { duration?: number }): void };
 };
 
 const STORAGE_KEY = "sso_profile_data";
 const NAV_GUARD_KEY = "sso_nav_guard";
+const SHOW_TOAST_KEY = "sso_show_toast";
 
 const CUSTOMER_API_URL =
   "shopify://customer-account/api/2026-01/graphql.json";
@@ -204,7 +206,16 @@ function SsoProfileSync() {
         const guard = await shopify.storage.read(NAV_GUARD_KEY);
         if (guard) {
           await shopify.storage.delete(NAV_GUARD_KEY);
-          return; // Skip this cycle; was triggered by our own navigation
+          // Show toast if sync just completed
+          const showToast = await shopify.storage.read(SHOW_TOAST_KEY);
+          if (showToast) {
+            await shopify.storage.delete(SHOW_TOAST_KEY);
+            shopify.toast.show(
+              "Your name and address have been updated from the SSO server.",
+              { duration: 5000 }
+            );
+          }
+          return;
         }
 
         const stored = await shopify.storage.read<SsoProfile>(STORAGE_KEY);
@@ -233,6 +244,7 @@ function SsoProfileSync() {
 
           await shopify.storage.write(STORAGE_KEY, profile);
           await shopify.storage.write(NAV_GUARD_KEY, "1");
+          await shopify.storage.write(SHOW_TOAST_KEY, "1");
           shopify.navigation.navigate("shopify:customer-account/profile");
         } else {
           // ── Phase B: Revert if customer edited profile ────────────────────
@@ -250,6 +262,7 @@ function SsoProfileSync() {
               stored.address
             );
             await shopify.storage.write(NAV_GUARD_KEY, "1");
+            await shopify.storage.write(SHOW_TOAST_KEY, "1");
             shopify.navigation.navigate("shopify:customer-account/profile");
           }
         }
