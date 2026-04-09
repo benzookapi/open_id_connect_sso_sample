@@ -131,14 +131,15 @@ export async function upsertCustomerAddressByGid(
   gid: string,
   address: WebhookAddress
 ): Promise<void> {
-  // First, look up the customer's existing default address ID
-  const lookupQuery = `query GetCustomerAddressId($id: ID!) {
-    customer(id: $id) { defaultAddress { id } }
+  // Look up the customer's existing addresses to find the default address ID.
+  // The Admin API returns addresses as a list; the first element is the default.
+  const lookupQuery = `query GetCustomerAddresses($id: ID!) {
+    customer(id: $id) { addresses { id } }
   }`;
   const lookupJson = (await adminGraphql(shop, accessToken, lookupQuery, { id: gid })) as {
-    data?: { customer?: { defaultAddress?: { id: string } | null } };
+    data?: { customer?: { addresses?: { id: string }[] } };
   };
-  const addressId = lookupJson.data?.customer?.defaultAddress?.id ?? null;
+  const addressGid = lookupJson.data?.customer?.addresses?.[0]?.id ?? null;
 
   const addressInput = {
     address1: address.address1 ?? "",
@@ -152,23 +153,25 @@ export async function upsertCustomerAddressByGid(
     phone: address.phone ?? "",
   };
 
-  if (addressId) {
-    const updateQuery = `mutation CustomerAddressUpdate($id: ID!, $address: MailingAddressInput!, $addressId: ID!) {
-      customerUpdate(input: { id: $id, addresses: [$address] }) {
-        customer { id }
+  if (addressGid) {
+    // Update existing address via customerAddressUpdate
+    const updateQuery = `mutation CustomerAddressUpdate($customerId: ID!, $addressId: ID!, $address: MailingAddressInput!) {
+      customerAddressUpdate(customerId: $customerId, addressId: $addressId, address: $address) {
+        customerAddress { id }
         userErrors { field message }
       }
     }`;
     const json = (await adminGraphql(shop, accessToken, updateQuery, {
-      id: gid,
+      customerId: gid,
+      addressId: addressGid,
       address: addressInput,
-      addressId,
-    })) as { data?: { customerUpdate?: { userErrors?: { field: string; message: string }[] } } };
-    const errors = json.data?.customerUpdate?.userErrors;
+    })) as { data?: { customerAddressUpdate?: { userErrors?: { field: string; message: string }[] } } };
+    const errors = json.data?.customerAddressUpdate?.userErrors;
     if (errors && errors.length > 0) {
-      console.error("[admin-api] address update userErrors:", JSON.stringify(errors));
+      console.error("[admin-api] customerAddressUpdate userErrors:", JSON.stringify(errors));
     }
   } else {
+    // Create new address via customerAddressCreate
     const createQuery = `mutation CustomerAddressCreate($customerId: ID!, $address: MailingAddressInput!) {
       customerAddressCreate(customerId: $customerId, address: $address) {
         customerAddress { id }
@@ -181,7 +184,7 @@ export async function upsertCustomerAddressByGid(
     })) as { data?: { customerAddressCreate?: { userErrors?: { field: string; message: string }[] } } };
     const errors = json.data?.customerAddressCreate?.userErrors;
     if (errors && errors.length > 0) {
-      console.error("[admin-api] address create userErrors:", JSON.stringify(errors));
+      console.error("[admin-api] customerAddressCreate userErrors:", JSON.stringify(errors));
     }
   }
 }
