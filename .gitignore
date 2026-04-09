@@ -8,6 +8,7 @@ pnpm-lock.yaml
 
 # Shopify CLI
 .shopify/
+extensions/**/shopify.d.ts
 
 # Claude Code
 .claude/
