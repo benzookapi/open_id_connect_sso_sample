@@ -13,22 +13,26 @@ export async function fetchEmailByGid(
     return cached;
   }
 
+  const query = `query GetCustomerEmail($id: ID!) {
+        customer(id: $id) { email }
+      }`;
+  const variables = { id: gid };
+  console.log("[admin-api] GraphQL request → shop:", shop, "| query:", query.replace(/\s+/g, " ").trim(), "| variables:", JSON.stringify(variables));
+
   const res = await fetch(`https://${shop}/admin/api/2026-04/graphql.json`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Shopify-Access-Token": accessToken,
     },
-    body: JSON.stringify({
-      query: `query GetCustomerEmail($id: ID!) {
-        customer(id: $id) { email }
-      }`,
-      variables: { id: gid },
-    }),
+    body: JSON.stringify({ query, variables }),
   });
 
+  console.log("[admin-api] GraphQL response status:", res.status);
+
   if (!res.ok) {
-    console.error("[admin-api] GraphQL request failed:", res.status, "shop:", shop);
+    const errBody = await res.text();
+    console.error("[admin-api] GraphQL request failed:", res.status, "body:", errBody);
     return undefined;
   }
 
@@ -36,6 +40,8 @@ export async function fetchEmailByGid(
     data?: { customer?: { email?: string } };
     errors?: unknown[];
   };
+
+  console.log("[admin-api] GraphQL response body:", JSON.stringify(json));
 
   if (json.errors) {
     console.error("[admin-api] GraphQL errors:", JSON.stringify(json.errors));
