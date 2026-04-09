@@ -24,9 +24,10 @@ export async function fetchEmailByGid(
   const query = `query GetCustomerEmail($id: ID!) { customer(id: $id) { email } }`;
   const variables = { id: gid };
   const queryStr = `${query} variables:${JSON.stringify(variables)}`;
-  console.log("[admin-api] GraphQL request → shop:", shop, "|", queryStr);
+  const endpoint = `https://${shop}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
+  console.log("[admin-api] GraphQL request → url:", endpoint, "| query:", queryStr);
 
-  const res = await fetch(`https://${shop}/admin/api/${ADMIN_API_VERSION}/graphql.json`, {
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

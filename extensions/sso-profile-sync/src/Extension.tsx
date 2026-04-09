@@ -77,19 +77,21 @@ interface CustomerData {
 // -- Customer Account API helpers (global fetch is authenticated automatically) --
 
 async function queryCustomer(): Promise<CustomerData | null> {
-  const res = await fetch(CUSTOMER_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: `query GetCustomer {
+  const query = `query GetCustomer {
         customer {
           id firstName lastName
           defaultAddress { id address1 address2 city zoneCode zip territoryCode }
         }
-      }`,
-    }),
+      }`;
+  console.log("[sso-sync] Customer API request → url:", CUSTOMER_API_URL, "| query:", query.replace(/\s+/g, " ").trim());
+  const res = await fetch(CUSTOMER_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
   });
+  console.log("[sso-sync] Customer API response status:", res.status);
   const json = await res.json();
+  console.log("[sso-sync] Customer API response body:", JSON.stringify(json));
   if (json?.errors) {
     console.error("[sso-sync] queryCustomer errors:", JSON.stringify(json.errors));
   }
@@ -100,19 +102,22 @@ async function updateCustomerName(
   firstName: string,
   lastName: string
 ): Promise<void> {
-  await fetch(CUSTOMER_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: `mutation CustomerUpdate($input: CustomerUpdateInput!) {
+  const query = `mutation CustomerUpdate($input: CustomerUpdateInput!) {
         customerUpdate(input: $input) {
           customer { id firstName lastName }
           userErrors { field message }
         }
-      }`,
-      variables: { input: { firstName, lastName } },
-    }),
+      }`;
+  const variables = { input: { firstName, lastName } };
+  console.log("[sso-sync] Customer API request → url:", CUSTOMER_API_URL, "| query:", query.replace(/\s+/g, " ").trim(), "| variables:", JSON.stringify(variables));
+  const res = await fetch(CUSTOMER_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables }),
   });
+  console.log("[sso-sync] Customer API response status:", res.status);
+  const json = await res.json();
+  console.log("[sso-sync] Customer API response body:", JSON.stringify(json));
 }
 
 async function upsertAddress(
@@ -137,33 +142,39 @@ async function upsertAddress(
   };
 
   if (addressId) {
-    await fetch(CUSTOMER_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `mutation CustomerAddressUpdate($addressId: ID!, $address: CustomerAddressInput, $defaultAddress: Boolean) {
+    const query = `mutation CustomerAddressUpdate($addressId: ID!, $address: CustomerAddressInput, $defaultAddress: Boolean) {
           customerAddressUpdate(addressId: $addressId, address: $address, defaultAddress: $defaultAddress) {
             customerAddress { id }
             userErrors { field message }
           }
-        }`,
-        variables: { addressId, address: addressInput, defaultAddress: true },
-      }),
-    });
-  } else {
-    await fetch(CUSTOMER_API_URL, {
+        }`;
+    const variables = { addressId, address: addressInput, defaultAddress: true };
+    console.log("[sso-sync] Customer API request → url:", CUSTOMER_API_URL, "| query:", query.replace(/\s+/g, " ").trim(), "| variables:", JSON.stringify(variables));
+    const res = await fetch(CUSTOMER_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `mutation CustomerAddressCreate($address: CustomerAddressInput!, $defaultAddress: Boolean) {
+      body: JSON.stringify({ query, variables }),
+    });
+    console.log("[sso-sync] Customer API response status:", res.status);
+    const json = await res.json();
+    console.log("[sso-sync] Customer API response body:", JSON.stringify(json));
+  } else {
+    const query = `mutation CustomerAddressCreate($address: CustomerAddressInput!, $defaultAddress: Boolean) {
           customerAddressCreate(address: $address, defaultAddress: $defaultAddress) {
             customerAddress { id }
             userErrors { field message }
           }
-        }`,
-        variables: { address: addressInput, defaultAddress: true },
-      }),
+        }`;
+    const variables = { address: addressInput, defaultAddress: true };
+    console.log("[sso-sync] Customer API request → url:", CUSTOMER_API_URL, "| query:", query.replace(/\s+/g, " ").trim(), "| variables:", JSON.stringify(variables));
+    const res = await fetch(CUSTOMER_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables }),
     });
+    console.log("[sso-sync] Customer API response status:", res.status);
+    const json = await res.json();
+    console.log("[sso-sync] Customer API response body:", JSON.stringify(json));
   }
 }
 
