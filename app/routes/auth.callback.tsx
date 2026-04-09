@@ -74,28 +74,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   setShopToken(shop, access_token);
   console.log("[auth/callback] stored Admin API token for shop:", shop);
 
-  // Redirect back into the Shopify Admin embedded context
-  const adminUrl = `https://${shop}/admin/apps/${apiKey}`;
-  console.log("[auth/callback] redirecting to Admin:", adminUrl);
-
-  // Use a client-side redirect so the browser navigates out of any intermediate frame
-  return new Response(
-    `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="shopify-api-key" content="${apiKey}" />
-  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-  <script>window.location.assign(${JSON.stringify(adminUrl)});</script>
-</head>
-<body><p>Redirecting...</p></body>
-</html>`,
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "text/html",
-        "Content-Security-Policy": `frame-ancestors https://admin.shopify.com https://${shop};`,
-      },
-    }
-  );
+  // Redirect back to /auth to show the app home page
+  const baseUrl = (process.env.BASE_URL ?? new URL(request.url).origin).replace(/\/$/, "");
+  return new Response(null, {
+    status: 302,
+    headers: { Location: `${baseUrl}/auth?shop=${encodeURIComponent(shop)}` },
+  });
 }
