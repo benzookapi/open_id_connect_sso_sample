@@ -29,10 +29,13 @@ declare module "preact" {
 declare const shopify: {
   sessionToken: { get(): Promise<string> };
   settings: { value: Record<string, string | number | boolean | undefined> | null };
+  extension: { apiVersion: string };
 };
 
+// API version is read from the extension runtime, which reflects the api_version
+// field in shopify.extension.toml — no hardcoding needed.
 const CUSTOMER_API_URL =
-  "shopify://customer-account/api/2026-01/graphql.json";
+  `shopify://customer-account/api/${shopify.extension.apiVersion}/graphql.json`;
 
 // Replace with your deployed SSO server URL and redeploy the extension.
 const SSO_BASE_URL = "https://open-id-connect-sso-sample.onrender.com";
