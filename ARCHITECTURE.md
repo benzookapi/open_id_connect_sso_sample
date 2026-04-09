@@ -1,6 +1,46 @@
 # Architecture — SSO Sample Sequence Diagrams
 
-Three core flows implemented in this sample.
+Four flows implemented in this sample.
+
+---
+
+## Flow 0 — App Installation OAuth (Admin API Token Acquisition)
+
+The merchant installs the app via the Shopify Partner Dashboard or App Store. This flow obtains an Admin API access token and caches it server-side for subsequent Admin API calls.
+
+```mermaid
+sequenceDiagram
+    actor Merchant
+    participant ShopifyAdmin as Shopify Admin
+    participant Auth as SSO Server<br>/auth
+    participant Callback as SSO Server<br>/auth/callback
+    participant ShopifyOAuth as Shopify OAuth<br>/admin/oauth/authorize
+
+    Merchant->>ShopifyAdmin: Install app
+    ShopifyAdmin->>Auth: GET /auth?shop=...&hmac=...
+    Auth->>Auth: Verify HMAC signature
+    Auth->>Auth: Check cached token via shop.name query
+    alt Cached token still valid
+        Auth->>Merchant: Show app home (token reused)
+    else No token or token revoked
+        Auth->>Auth: Generate nonce (UUID), store in pendingNonces
+        Auth->>ShopifyOAuth: Redirect to /admin/oauth/authorize<br>(client_id, scope, redirect_uri, state=nonce)
+        Merchant->>ShopifyOAuth: Approve OAuth grant
+        ShopifyOAuth->>Callback: GET /auth/callback?code=...&state=nonce
+        Callback->>Callback: Verify nonce (consumePendingNonce)
+        Callback->>ShopifyOAuth: POST /admin/oauth/access_token<br>(client_id, client_secret, code)
+        ShopifyOAuth->>Callback: access_token
+        Callback->>Callback: setShopToken(shop, token) — cache in memory
+        Callback->>Auth: Redirect to /auth?shop=...
+        Auth->>Merchant: Show app home (token active)
+    end
+```
+
+**Key points:**
+- HMAC on incoming request is verified with `SHOPIFY_API_SECRET` to confirm the request is from Shopify.
+- Cached tokens are validated with a live `{ shop { name } }` Admin API query — a revoked token (after uninstall) triggers re-authorization automatically.
+- The nonce is single-use and auto-expires after 10 minutes to prevent replay attacks.
+- The access token is stored in-memory (`Map<shopDomain, token>`); it is lost on server restart and re-acquired on the next `/auth` visit.
 
 ---
 
@@ -116,21 +156,26 @@ sequenceDiagram
             Note over Webhook: Direction B — SSO → Shopify overwrite
             Webhook->>Store: getSsoTestProfile(GID)
             Store->>Webhook: SSO profile (given_name, family_name, address)
-            Webhook->>AdminAPI: mutation CustomerUpdate<br>(id, firstName, lastName)
-            Webhook->>AdminAPI: query GetCustomerAddresses(id: GID)
-            AdminAPI->>Webhook: addresses[0].id (addressGid)
-            alt Address exists
-                Webhook->>AdminAPI: mutation CustomerAddressUpdate<br>(customerId, addressId, address)
-            else No address on file
-                Webhook->>AdminAPI: mutation CustomerAddressCreate<br>(customerId, address)
+            alt WEBHOOK_DATA_SYNC=false
+                Webhook->>Shopify: 200 OK (log-only, no data written)
+            else WEBHOOK_DATA_SYNC=true (default)
+                Webhook->>AdminAPI: mutation CustomerUpdate<br>(id, firstName, lastName)
+                Webhook->>AdminAPI: query GetCustomerAddresses(id: GID)
+                AdminAPI->>Webhook: addresses[0].id (addressGid)
+                alt Address exists
+                    Webhook->>AdminAPI: mutation CustomerAddressUpdate<br>(customerId, addressId, address)
+                else No address on file
+                    Webhook->>AdminAPI: mutation CustomerAddressCreate<br>(customerId, address)
+                end
+                Webhook->>Shopify: 200 OK
             end
-            Webhook->>Shopify: 200 OK
         end
     end
 ```
 
 **Key points:**
 - Raw body is read as `Buffer` before JSON parsing to compute the correct HMAC.
+- `WEBHOOK_DATA_SYNC=false` disables Direction B data writes (log-only mode). Default (unset) is `true`.
 - Direction A (Shopify → SSO DB) is shown as pseudocode — no persistent DB in this sample.
 - Direction B (SSO → Shopify) mirrors what the UI Extension does, but server-side.
 - Non-2xx responses trigger automatic Shopify webhook retry.

@@ -125,10 +125,20 @@ export async function action({ request }: ActionFunctionArgs) {
   // fetch the canonical SSO profile and overwrite Shopify customer data via Admin API.
   // This is equivalent to what the Customer Account extension does on login,
   // but triggered server-side by the webhook event.
-  console.log("[webhook] Direction B: overwriting Shopify customer with SSO profile");
+  //
+  // Set WEBHOOK_DATA_SYNC=false to disable data writes (log-only mode).
+  // Default (unset) is true — data sync is enabled.
+  const dataSyncEnabled = (process.env.WEBHOOK_DATA_SYNC ?? "true") === "true";
 
   const ssoProfile = getSsoTestProfile(gid);
-  console.log("[webhook] SSO profile:", JSON.stringify(ssoProfile));
+  console.log("[webhook] Direction B: SSO profile:", JSON.stringify(ssoProfile));
+
+  if (!dataSyncEnabled) {
+    console.log("[webhook] Direction B: WEBHOOK_DATA_SYNC=false — skipping data update (log-only mode)");
+    return new Response("OK", { status: 200 });
+  }
+
+  console.log("[webhook] Direction B: overwriting Shopify customer with SSO profile");
 
   try {
     await updateCustomerNameByGid(
