@@ -32,21 +32,27 @@ export default function Index() {
           <tr style={{ background: "#f4f6f8" }}>
             <th style={thStyle}>Endpoint</th>
             <th style={thStyle}>URL</th>
+            <th style={thStyle}>Spec</th>
           </tr>
         </thead>
         <tbody>
-          {[
-            ["Discovery", `${baseUrl}/.well-known/openid-configuration`],
-            ["JWKS", `${baseUrl}/.well-known/jwks.json`],
-            ["Authorization", `${baseUrl}/authorize`],
-            ["Token", `${baseUrl}/token`],
-            ["UserInfo", `${baseUrl}/userinfo`],
-            ["End Session (Logout)", `${baseUrl}/logout`],
-          ].map(([label, url]) => (
+          {(
+            [
+              ["Discovery",            `${baseUrl}/.well-known/openid-configuration`, "https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata",       "OIDC Discovery 1.0 §3"],
+              ["JWKS",                 `${baseUrl}/.well-known/jwks.json`,            "https://www.rfc-editor.org/rfc/rfc7517",                                            "RFC 7517 (JWK)"],
+              ["Authorization",        `${baseUrl}/authorize`,                        "https://openid.net/specs/openid-connect-core-1_0.html#AuthorizationEndpoint",        "OIDC Core 1.0 §3.1.2"],
+              ["Token",                `${baseUrl}/token`,                            "https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint",                "OIDC Core 1.0 §3.1.3"],
+              ["UserInfo",             `${baseUrl}/userinfo`,                         "https://openid.net/specs/openid-connect-core-1_0.html#UserInfo",                     "OIDC Core 1.0 §5.3"],
+              ["End Session (Logout)", `${baseUrl}/logout`,                           "https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout",              "OIDC RP-Initiated Logout 1.0"],
+            ] as [string, string, string, string][]
+          ).map(([label, url, specUrl, specLabel]) => (
             <tr key={label}>
               <td style={tdStyle}>{label}</td>
               <td style={tdStyle}>
                 <a href={url} style={{ color: "#5c6ac4" }}>{url}</a>
+              </td>
+              <td style={tdStyle}>
+                <a href={specUrl} target="_blank" rel="noreferrer" style={{ color: "#5c6ac4" }}>{specLabel}</a>
               </td>
             </tr>
           ))}
