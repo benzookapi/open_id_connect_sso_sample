@@ -34,6 +34,8 @@ export async function action({ request }: ActionFunctionArgs) {
   const codeChallenge = (form.get("code_challenge") as string) || undefined;
   const codeChallengeMethod = (form.get("code_challenge_method") as string) || undefined;
 
+  const rawSub = (form.get("sub") as string) || "";
+
   if (!email.trim() || !password.trim()) {
     return json({ error: "Email and password are required" });
   }
@@ -41,8 +43,11 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "Invalid authorization request" });
   }
 
-  // Dummy authentication: any email/password is accepted
-  const userId = `user_${Buffer.from(email.toLowerCase()).toString("hex").slice(0, 16)}`;
+  // Dummy authentication: any email/password is accepted.
+  // If a custom sub is provided in the form, use it directly; otherwise derive from email.
+  const userId = rawSub.trim()
+    ? rawSub.trim()
+    : `user_${Buffer.from(email.toLowerCase()).toString("hex").slice(0, 16)}`;
 
   const code = uuidv4();
   storeAuthCode(code, {
@@ -127,6 +132,19 @@ export default function Login() {
             />
           </div>
 
+          <div style={fieldStyle}>
+            <label style={labelStyle} htmlFor="sub">
+              Sub <span style={{ fontWeight: 400, color: "#6d7175" }}>(optional override)</span>
+            </label>
+            <input
+              id="sub"
+              type="text"
+              name="sub"
+              style={inputStyle}
+              placeholder="Leave blank to derive from email"
+            />
+          </div>
+
           <button type="submit" style={buttonStyle}>
             Sign In
           </button>
@@ -137,6 +155,14 @@ export default function Login() {
           <p style={{ margin: "8px 0 0" }}>
             Any email address and password will be accepted.
             <br />Example: <code>test@example.com</code> / <code>password</code>
+          </p>
+          <p style={{ margin: "12px 0 0" }}>
+            <strong>Sub override:</strong> Leave blank to use the default{" "}
+            <code>user_xxxx</code> key derived from the email. Enter any value
+            to use it directly as the OIDC <code>sub</code> claim — useful for
+            testing how Shopify links customers by <code>sub</code> vs email.
+            <br />Examples: <code>custom-user-123</code>,{" "}
+            <code>gid://shopify/Customer/12345</code>
           </p>
         </div>
       </div>
