@@ -51,20 +51,21 @@ Shopify Customer Account acts as the Relying Party (RP) and authenticates a cust
 ```mermaid
 sequenceDiagram
     actor Customer
-    participant RP as Shopify<br>(Customer Account RP)
-    participant OP as SSO Server (OP)<br>/authorize /login /token
+    participant RP as Shopify (Customer Account RP)
+    participant OP as SSO Server (OP) /authorize /login /token
 
     Customer->>RP: Access protected resource
-    RP->>OP: GET /authorize<br>(client_id, redirect_uri, response_type=code,<br>scope=openid, code_challenge, nonce)
+    RP->>OP: GET /authorize (client_id, redirect_uri, response_type=code, scope=openid, code_challenge, nonce)
     OP->>OP: Validate params (client_id, redirect_uri, response_type)
-    OP->>Customer: 302 Redirect → /login (SSO Server login page)
-    Customer->>OP: POST /login<br>(email, password; OIDC params as hidden fields)
+    OP->>Customer: 302 Redirect to /login (SSO Server login page)
+    Customer->>OP: POST /login (email, password, OIDC params as hidden fields)
     OP->>OP: Authenticate, generate authorization code
-    OP->>Customer: 302 Redirect → redirect_uri?code=xxx&state=xxx
+    OP->>Customer: 302 Redirect to redirect_uri with code and state
     Customer->>RP: Browser arrives at Shopify callback with code
-    RP->>OP: POST /token<br>(code, client_id, client_secret, redirect_uri, code_verifier)<br>[server-to-server — not a browser redirect]
-    OP->>OP: Verify code + PKCE (S256), sign ID Token (RS256) and Access Token
-    OP->>RP: {id_token, access_token, refresh_token, expires_in}
+    RP->>OP: POST /token (code, client_id, client_secret, redirect_uri, code_verifier)
+    Note over RP,OP: server-to-server call, not a browser redirect
+    OP->>OP: Verify code and PKCE (S256), sign ID Token (RS256) and Access Token
+    OP->>RP: id_token, access_token, refresh_token, expires_in
     RP->>RP: Verify ID Token claims, establish customer session
     RP->>Customer: Redirect to storefront (logged in)
 ```
