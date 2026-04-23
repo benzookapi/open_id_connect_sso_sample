@@ -58,6 +58,7 @@ export function getShopifyClaimsProfile(_userId: string): ShopifyClaimsProfile {
   return {
     given_name: "Taro Claims",
     family_name: "Yamada",
+    tags: "OIDC_SSO",
     addresses: [
       {
         address1: "1-1-1 Claims Chiyoda",

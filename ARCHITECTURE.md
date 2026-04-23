@@ -86,7 +86,7 @@ sequenceDiagram
   | `given_name` | First name |
   | `family_name` | Last name |
   | `urn:shopify:customer:addresses` | Address array (Shopify custom claim) |
-  | `urn:shopify:customer:tags` | Customer tags (Shopify custom claim, omitted if empty) |
+  | `urn:shopify:customer:tags` | Customer tags — set to `"OIDC_SSO"` (Shopify custom claim). **All existing tags are replaced** when Overwrite is enabled. |
 
   See Flow 2 for `/userinfo` usage (UI Extension, post-login profile sync).
 
