@@ -89,6 +89,8 @@ sequenceDiagram
 
   See Flow 2 for `/userinfo` usage (UI Extension, post-login profile sync).
 
+- **Shopify-side setting required for profile sync:** For Shopify to apply these claims and overwrite the customer record at login, the identity provider's **Sync customer data** setting must be enabled in Shopify Admin (Settings → Customer accounts → Authentication → Manage providers), and the overwrite rule must be set to **Overwrite existing customer data**. Without this setting, the claims are received but not applied. See [Sync customer data](https://help.shopify.com/en/manual/customers/customer-accounts/sign-in-options/identity-provider/sync-customer-data).
+
 ---
 
 ## Flow 2 — Customer Account UI Extension (userinfo → Customer Data Overwrite)
@@ -136,6 +138,11 @@ sequenceDiagram
 - Session token fetch and customer query run in parallel to minimize latency.
 - `/userinfo` response embeds the Admin API query/response in `street_address` for demo visibility.
 - All API calls are logged to browser DevTools console with URL, query, and response body.
+- **Why the Admin API is required to resolve the customer email:** The UI Extension calls `/userinfo` with the Shopify session token as a Bearer token. The session token's `sub` claim is the **Shopify Customer GID** (`gid://shopify/Customer/123`) — not the OIDC `sub` from Flow 1. To return the SSO profile, `/userinfo` must map this GID to an email address. All alternative approaches are blocked:
+  - **Flow 1 `sub` → GID mapping:** The GID is not known at login time (Shopify assigns it independently), so a reverse-mapping table cannot be built.
+  - **Session token email claim:** The session token contains only `sub` (GID), `dest`, `aud`, `exp`, `nbf`, `iat`, and `jti` — no email.
+  - **Storefront API / Customer Account API:** These APIs only expose data for the currently authenticated customer and do not support lookup by GID from a server context.
+  - **Admin API:** Supports `customer(id: GID)` queries from a server with an Admin API token, making it the only viable option to resolve GID → email.
 
 ---
 
