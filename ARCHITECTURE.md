@@ -41,6 +41,7 @@ sequenceDiagram
 - Cached tokens are validated with a live `{ shop { name } }` Admin API query — a revoked token (after uninstall) triggers re-authorization automatically.
 - The nonce is single-use and auto-expires after 10 minutes to prevent replay attacks.
 - The access token is stored in-memory (`Map<shopDomain, token>`); it is lost on server restart and re-acquired on the next `/auth` visit.
+- **This Admin API token is a prerequisite for Flow 2 and Flow 3.** Flow 2 (`/userinfo`) uses it to resolve a Customer GID to an email address via the Admin API. Flow 3 (webhook handler) uses it to overwrite customer data in Shopify. If the app has not been installed (no token cached), both flows degrade gracefully but cannot perform Admin API operations.
 
 ---
 
