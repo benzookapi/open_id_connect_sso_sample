@@ -76,7 +76,18 @@ sequenceDiagram
 - `/login` is the SSO Server's login UI. The customer enters credentials here, the server generates an authorization code, and redirects the browser back to Shopify's callback URL.
 - `/token` is called **server-to-server** by Shopify's backend (not a browser redirect), per [RFC 6749 §4.1.3](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.3) and [OpenID Connect Core §3.1.3](https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint). The user's browser waits at the callback URL while this exchange completes.
 - **`/token` (and all IdP endpoints) must respond within 1 second.** Shopify will time out the request and fail the login flow if this is exceeded. Ensure the server is hosted in a low-latency environment. See [Shopify IdP Requirements](https://help.shopify.com/en/manual/customers/customer-accounts/sign-in-options/identity-provider/requirements).
-- Shopify reads customer identity directly from the ID Token claims (`sub`, `email`, etc.) — `/userinfo` is **not** called during login. See Flow 2 for userinfo usage.
+- The ID Token returned by `/token` carries the customer profile as JWT claims. Shopify reads these claims to create or update the customer record at login time — **no separate `/userinfo` call is made during login**:
+
+  | Claim | Description |
+  |---|---|
+  | `sub` | Customer identifier |
+  | `email` | Email address |
+  | `given_name` | First name |
+  | `family_name` | Last name |
+  | `urn:shopify:customer:addresses` | Address array (Shopify custom claim) |
+  | `urn:shopify:customer:tags` | Customer tags (Shopify custom claim, omitted if empty) |
+
+  See Flow 2 for `/userinfo` usage (UI Extension, post-login profile sync).
 
 ---
 
