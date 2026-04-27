@@ -7,13 +7,13 @@ Built with Node.js + Remix (React Router).
 
 | Endpoint | Path | Source File |
 |---|---|---|
-| OIDC Discovery | `/.well-known/openid-configuration` | `app/routes/[.]well-known.openid-configuration.tsx` |
-| JWKS | `/.well-known/jwks.json` | `app/routes/[.]well-known.jwks[.]json.tsx` |
-| Authorization | `/authorize` | `app/routes/authorize.tsx` |
-| Token | `/token` (POST) | `app/routes/token.tsx` |
-| UserInfo | `/userinfo` | `app/routes/userinfo.tsx` |
-| Login UI | `/login` | `app/routes/login.tsx` |
-| End Session | `/logout` | `app/routes/logout.tsx` |
+| [OIDC Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) | `/.well-known/openid-configuration` | [app/routes/[.]well-known.openid-configuration.tsx](app/routes/%5B.%5Dwell-known.openid-configuration.tsx) |
+| [JWKS](https://datatracker.ietf.org/doc/html/rfc7517) | `/.well-known/jwks.json` | [app/routes/[.]well-known.jwks[.]json.tsx](app/routes/%5B.%5Dwell-known.jwks%5B.%5Djson.tsx) |
+| [Authorization](https://openid.net/specs/openid-connect-core-1_0.html#AuthorizationEndpoint) | `/authorize` | [app/routes/authorize.tsx](app/routes/authorize.tsx) |
+| [Token](https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint) | `/token` (POST) | [app/routes/token.tsx](app/routes/token.tsx) |
+| [UserInfo](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo) | `/userinfo` | [app/routes/userinfo.tsx](app/routes/userinfo.tsx) |
+| Login UI | `/login` | [app/routes/login.tsx](app/routes/login.tsx) |
+| [End Session](https://openid.net/specs/openid-connect-rpinitiated-1_0.html) | `/logout` | [app/routes/logout.tsx](app/routes/logout.tsx) |
 
 - **Authentication**: Dummy — any email and password are accepted
 - **Signing algorithm**: RS256 (RSA key pair generated automatically at startup)
@@ -23,11 +23,11 @@ Built with Node.js + Remix (React Router).
 
 | File | Role |
 |---|---|
-| `app/lib/oidc.server.ts` | OIDC helpers — ID token / access token construction |
-| `app/lib/keys.server.ts` | RSA key-pair generation and JWKS export |
-| `app/lib/store.server.ts` | In-memory authorization code and profile store |
-| `app/lib/session.server.ts` | Remix session management |
-| `app/lib/admin-api.server.ts` | Shopify Admin API helpers (GID → email, customer update) |
+| [app/lib/oidc.server.ts](app/lib/oidc.server.ts) | OIDC helpers — ID token / access token construction |
+| [app/lib/keys.server.ts](app/lib/keys.server.ts) | RSA key-pair generation and JWKS export |
+| [app/lib/store.server.ts](app/lib/store.server.ts) | In-memory authorization code and profile store |
+| [app/lib/session.server.ts](app/lib/session.server.ts) | Remix session management |
+| [app/lib/admin-api.server.ts](app/lib/admin-api.server.ts) | Shopify Admin API helpers (GID → email, customer update) |
 
 ## Local Setup
 
