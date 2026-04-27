@@ -52,7 +52,7 @@ CLIENT_ID=<client ID registered in Shopify>
 CLIENT_SECRET=<client secret registered in Shopify>
 ```
 
-> Additional variables for Flow 0, 2, and 3 are added later — see [Flow 0, 2, 3: Shopify App Setup](#flow-0-2-3-shopify-app-setup).
+> Additional variables for Flow 0, 2, and 3 are added later — see [Optional: Shopify App Setup for Flow 0, 2, 3](#optional-shopify-app-setup-for-flow-0-2-3).
 
 ### 3. Start the development server
 
@@ -107,7 +107,7 @@ In the Shopify admin or Partner Dashboard, enter the following SSO provider sett
 
 ## Optional: Shopify App Setup for Flow 0, 2, 3
 
-Flow 1 (OIDC login) works standalone with the variables above. To also test **Flow 0** (Admin API token acquisition), **Flow 2** (UI Extension profile sync), or **Flow 3** (webhook-based data overwrite), configure and deploy a Shopify app.
+Flow 1 (OIDC login) works standalone with the variables above. To also test **Flow 0** (Admin API token acquisition), **Flow 2** (UI Extension profile sync), or **Flow 3** (webhook-based data overwrite), configure and deploy a Shopify app. For details on each flow, see [Architecture](#architecture).
 
 ### 1. Create an app in the Partner Dashboard
 
