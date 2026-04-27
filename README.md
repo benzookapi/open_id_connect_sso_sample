@@ -9,8 +9,8 @@ Read these first before setting up:
 
 - [Connect a third-party identity provider](https://help.shopify.com/en/manual/customers/customer-accounts/sign-in-options/identity-provider/connect)
 - [Identity provider requirements](https://help.shopify.com/en/manual/customers/customer-accounts/sign-in-options/identity-provider/requirements)
-- [Customer Authentication API](https://shopify.dev/docs/api/customer-authentication)
-- [Customer API reference (unstable)](https://shopify.dev/docs/api/customer/unstable)
+- [Customer Authentication](https://shopify.dev/docs/api/customer-authentication)
+- [Customer API reference](https://shopify.dev/docs/api/customer/unstable)
 
 ## Endpoints
 
