@@ -85,7 +85,13 @@ Set `BASE_URL` in `.env` to the public URL printed by the tunnel tool before sta
 
 ### 1. Push this repository to GitHub
 
+```bash
+git push origin main
+```
+
 ### 2. Create a New Web Service in Render and connect the GitHub repository
+
+See [Deploy a Web Service](https://docs.render.com/web-services) for details.
 
 ### 3. Set environment variables in the Render Dashboard
 
@@ -106,7 +112,7 @@ For build and run commands, see [`render.yaml`](render.yaml).
 
 ## Registering in Shopify
 
-In the Shopify admin or Partner Dashboard, enter the following SSO provider settings:
+In the Shopify admin, go to **Settings → Customer accounts → Authentication → Manage providers → Connect a provider** and enter the following settings:
 
 | Field | Value |
 |---|---|
