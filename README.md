@@ -5,18 +5,29 @@ Built with Node.js + Remix (React Router).
 
 ## Endpoints
 
-| Endpoint | Path |
-|---|---|
-| OIDC Discovery | `/.well-known/openid-configuration` |
-| JWKS | `/.well-known/jwks.json` |
-| Authorization | `/authorize` |
-| Token | `/token` (POST) |
-| UserInfo | `/userinfo` |
-| End Session | `/logout` |
+| Endpoint | Path | Source File |
+|---|---|---|
+| OIDC Discovery | `/.well-known/openid-configuration` | `app/routes/[.]well-known.openid-configuration.tsx` |
+| JWKS | `/.well-known/jwks.json` | `app/routes/[.]well-known.jwks[.]json.tsx` |
+| Authorization | `/authorize` | `app/routes/authorize.tsx` |
+| Token | `/token` (POST) | `app/routes/token.tsx` |
+| UserInfo | `/userinfo` | `app/routes/userinfo.tsx` |
+| Login UI | `/login` | `app/routes/login.tsx` |
+| End Session | `/logout` | `app/routes/logout.tsx` |
 
 - **Authentication**: Dummy — any email and password are accepted
 - **Signing algorithm**: RS256 (RSA key pair generated automatically at startup)
 - **Token endpoint auth methods**: `client_secret_basic`, `client_secret_post`
+
+## Core Files
+
+| File | Role |
+|---|---|
+| `app/lib/oidc.server.ts` | OIDC helpers — ID token / access token construction |
+| `app/lib/keys.server.ts` | RSA key-pair generation and JWKS export |
+| `app/lib/store.server.ts` | In-memory authorization code and profile store |
+| `app/lib/session.server.ts` | Remix session management |
+| `app/lib/admin-api.server.ts` | Shopify Admin API helpers (GID → email, customer update) |
 
 ## Local Setup
 
