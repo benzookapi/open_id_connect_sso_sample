@@ -92,6 +92,10 @@ sequenceDiagram
 
 - **Shopify-side setting required for profile sync:** For Shopify to apply these claims and overwrite the customer record at login, the identity provider's **Sync customer data** setting must be enabled in Shopify Admin (Settings → Customer accounts → Authentication → Manage providers), and the overwrite rule must be set to **Overwrite existing customer data**. Without this setting, the claims are received but not applied. See [Sync customer data](https://help.shopify.com/en/manual/customers/customer-accounts/sign-in-options/identity-provider/sync-customer-data).
 - **Refresh tokens are required to maintain the 90-day session.** See Flow 4 for the refresh token sequence and [Session and token requirements](https://help.shopify.com/en/manual/customers/customer-accounts/sign-in-options/identity-provider/requirements#session-and-token-requirements).
+- **`sub` and email pairing must be strictly consistent — duplicate or swapped `sub` values are a critical security risk.** ⚠️
+  - The OIDC unique identifier is `sub`, but Shopify identifies customers by **email address**. Shopify links a `sub` to the customer record that has the matching email at the time of first login.
+  - **Same email, different `sub`:** Shopify blocks the login and returns the customer to the login screen. To re-link the email to a new `sub`, the existing Shopify customer record must first be deleted or merged. Note that customers with order history **cannot be deleted**, and customer merging has [eligibility conditions](https://help.shopify.com/en/manual/customers/merge-customers).
+  - **Previously used `sub` returned with a different email:** Shopify does **not** return an error. Instead, the customer is silently logged in as the customer who originally held that `sub` — the new email address is ignored and no new customer record is created. This means **one person can log in as another person's account**. Duplicate `sub` values across different users on the SSO side can therefore lead to a serious security incident. ⚠️
 
 ---
 
