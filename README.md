@@ -83,9 +83,11 @@ Set `BASE_URL` in `.env` to the public URL printed by the tunnel tool before sta
 
 ## Deploying to Render
 
-1. Push this repository to GitHub
-2. In Render, create a **New Web Service** and connect the GitHub repository
-3. Set the following environment variables in the Render Dashboard:
+### 1. Push this repository to GitHub
+
+### 2. Create a New Web Service in Render and connect the GitHub repository
+
+### 3. Set environment variables in the Render Dashboard
 
 | Variable | Value |
 |---|---|
