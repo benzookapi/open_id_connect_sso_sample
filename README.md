@@ -87,18 +87,18 @@ Set `BASE_URL` in `.env` to the public URL printed by the tunnel tool before sta
 2. In Render, create a **New Web Service** and connect the GitHub repository
 3. Set the following environment variables in the Render Dashboard:
 
-   | Variable | Value |
-   |---|---|
-   | `BASE_URL` | The URL Render assigns (e.g. `https://your-service.onrender.com`) |
-   | `CLIENT_ID` | Must match exactly what you register in Shopify |
-   | `CLIENT_SECRET` | Must match exactly what you register in Shopify |
-   | `SESSION_SECRET` | Auto-generated via `render.yaml` — no action needed |
-   | `SHOPIFY_API_KEY` | API key of your Shopify app — required for Flow 0, 2, 3 |
-   | `SHOPIFY_API_SECRET` | API secret key — required for Flow 0, 2, 3 |
-   | `SHOPIFY_ADMIN_API_VERSION` | Admin API version (e.g. `2026-04`) — required for Flow 0, 2, 3 |
-   | `WEBHOOK_DATA_SYNC` | `true` to enable data writes in Flow 3 (default) |
+| Variable | Value |
+|---|---|
+| `BASE_URL` | The URL Render assigns (e.g. `https://your-service.onrender.com`) |
+| `CLIENT_ID` | Must match exactly what you register in Shopify |
+| `CLIENT_SECRET` | Must match exactly what you register in Shopify |
+| `SESSION_SECRET` | Auto-generated via `render.yaml` — no action needed |
+| `SHOPIFY_API_KEY` | API key of your Shopify app — required for Flow 0, 2, 3 |
+| `SHOPIFY_API_SECRET` | API secret key — required for Flow 0, 2, 3 |
+| `SHOPIFY_ADMIN_API_VERSION` | Admin API version (e.g. `2026-04`) — required for Flow 0, 2, 3 |
+| `WEBHOOK_DATA_SYNC` | `true` to enable data writes in Flow 3 (default) |
 
-   For build and run commands, see [`render.yaml`](render.yaml).
+For build and run commands, see [`render.yaml`](render.yaml).
 
 > **Note**: The Render Free plan spins down on idle. When it wakes up, the RSA key pair is regenerated and any existing tokens become invalid. This is expected behavior for testing purposes.
 
