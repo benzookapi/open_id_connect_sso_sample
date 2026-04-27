@@ -1,0 +1,23 @@
+# Copy this file to shopify.app.toml and replace all placeholder values.
+# Learn more: https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration
+
+client_id = "your-app-client-id"      # Replace with the Client ID from the Partner Dashboard
+name = "your-app-name"                # Replace with your app name
+application_url = "https://your-server-url/auth"   # Replace with your server URL
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-04"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/update"]
+  uri = "https://your-server-url/webhooks/customers-update"   # Replace with your server URL
+
+[access_scopes]
+scopes = "read_customers,write_customers,customer_read_customers,customer_write_customers"
+
+[auth]
+redirect_urls = [ "https://your-server-url/auth/callback" ]   # Replace with your server URL

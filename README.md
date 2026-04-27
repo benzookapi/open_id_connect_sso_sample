@@ -74,14 +74,22 @@ Set `BASE_URL` in `.env` to the public URL printed by the tunnel tool before sta
 
 ## Deploying to Render
 
-1. Push this repository to GitHub (`shopify-apac-ts/open_id_connect_sso_sample`)
+1. Push this repository to GitHub
 2. In Render, create a **New Web Service** and connect the GitHub repository
-3. Set the following environment variables in Render:
-   - `BASE_URL`: The URL Render assigns to your service (e.g. `https://your-service.onrender.com`)
-   - `CLIENT_ID`: Any string — must match exactly what you register in Shopify
-   - `CLIENT_SECRET`: Any string — must match exactly what you register in Shopify
-   - `SHOPIFY_API_SECRET`: API secret key of your Shopify app (used to verify session tokens in `/userinfo`)
-   - `SESSION_SECRET`: Auto-generated via `render.yaml` (no action needed)
+3. Set the following environment variables in the Render Dashboard:
+
+   | Variable | Value |
+   |---|---|
+   | `BASE_URL` | The URL Render assigns (e.g. `https://your-service.onrender.com`) |
+   | `CLIENT_ID` | Must match exactly what you register in Shopify |
+   | `CLIENT_SECRET` | Must match exactly what you register in Shopify |
+   | `SESSION_SECRET` | Auto-generated via `render.yaml` — no action needed |
+   | `SHOPIFY_API_KEY` | API key of your Shopify app — required for Flow 0, 2, 3 |
+   | `SHOPIFY_API_SECRET` | API secret key — required for Flow 0, 2, 3 |
+   | `SHOPIFY_ADMIN_API_VERSION` | Admin API version (e.g. `2026-04`) — required for Flow 0, 2, 3 |
+   | `WEBHOOK_DATA_SYNC` | `true` to enable data writes in Flow 3 (default) |
+
+   For build and run commands, see [`render.yaml`](render.yaml).
 
 > **Note**: The Render Free plan spins down on idle. When it wakes up, the RSA key pair is regenerated and any existing tokens become invalid. This is expected behavior for testing purposes.
 
@@ -97,47 +105,66 @@ In the Shopify admin or Partner Dashboard, enter the following SSO provider sett
 | Additional scopes | `profile` |
 | Logout redirect URI parameter name | `post_logout_redirect_uri` |
 
-## Flow 0, 2, 3: Shopify App Setup
+## Optional: Shopify App Setup for Flow 0, 2, 3
 
-Flow 1 (OIDC login) works standalone with the variables above. To also test **Flow 0** (Admin API token acquisition), **Flow 2** (UI Extension profile sync), or **Flow 3** (webhook-based data overwrite), you need a Shopify app installed on a development store.
+Flow 1 (OIDC login) works standalone with the variables above. To also test **Flow 0** (Admin API token acquisition), **Flow 2** (UI Extension profile sync), or **Flow 3** (webhook-based data overwrite), configure and deploy a Shopify app.
 
 ### 1. Create an app in the Partner Dashboard
 
-1. Log in to the [Shopify Partner Dashboard](https://partners.shopify.com/) and create a new app.
-2. In the app settings, configure:
-   - **App URL**: `https://<your-server-url>/auth`
-   - **Allowed redirection URL(s)**: `https://<your-server-url>/auth/callback`
-3. Note the **API key** (`SHOPIFY_API_KEY`) and **API secret key** (`SHOPIFY_API_SECRET`) from the app credentials page.
+1. Log in to the [Shopify Partner Dashboard](https://partners.shopify.com/) and go to **Apps → Create app → Create app manually**.
+2. Give the app a name and confirm. The **Client ID** and **API secret key** are shown on the app credentials page — note both for the next step.
 
-See [Build a Shopify app](https://shopify.dev/docs/apps/build) for details on creating and configuring apps.
+### 2. Configure and deploy with `shopify.app.toml`
 
-### 2. Install on a development store
+Copy the example file and fill in your values:
 
-Open the following URL in a browser to trigger the OAuth installation flow (Flow 0):
+```bash
+cp shopify.app.toml.example shopify.app.toml
+```
+
+Edit `shopify.app.toml` — replace `client_id` and all placeholder URLs with your actual values:
+
+```toml
+client_id = "your-app-client-id"                                        # from step 1
+application_url = "https://your-server-url/auth"
+
+[webhooks]
+  [[webhooks.subscriptions]]
+  topics = ["customers/update"]
+  uri = "https://your-server-url/webhooks/customers-update"             # Flow 3
+
+[auth]
+redirect_urls = [ "https://your-server-url/auth/callback" ]
+```
+
+Deploy the app configuration and UI extension to Shopify:
+
+```bash
+shopify app deploy
+```
+
+This registers the App URL, OAuth redirect URLs, webhook subscription (Flow 3), and UI extension (Flow 2) with Shopify in one step. Then install the app on your development store by visiting:
 
 ```
-https://<your-server-url>/auth?shop=<your-store>.myshopify.com
+https://your-server-url/auth?shop=your-store.myshopify.com
 ```
 
 After approval, the server caches an Admin API token for the store — required by Flow 2 and Flow 3.
 
-### 3. Register the webhook (Flow 3 only)
+See [App configuration reference](https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration) and [Subscribe to webhooks](https://shopify.dev/docs/apps/build/webhooks/subscribe) for details.
 
-In the Partner Dashboard → app settings → Webhooks, subscribe to the `customers/update` topic:
+### 3. Add the additional environment variables
 
-- **URL**: `https://<your-server-url>/webhooks/customers-update`
-- **Format**: JSON
-
-See [Subscribe to webhooks](https://shopify.dev/docs/apps/build/webhooks/subscribe/create-delete) for details.
-
-### 4. Add the additional environment variables
+Add these to your local `.env`:
 
 ```
-SHOPIFY_API_KEY=<API key from app credentials>
+SHOPIFY_API_KEY=<Client ID from app credentials>
 SHOPIFY_API_SECRET=<API secret key from app credentials>
 SHOPIFY_ADMIN_API_VERSION=2026-04
 WEBHOOK_DATA_SYNC=true    # Set to false to log only without writing to Shopify (Flow 3)
 ```
+
+If you are hosting on Render, set the same variables in the Render Dashboard as well — see [Deploying to Render](#deploying-to-render).
 
 ## Architecture
 
