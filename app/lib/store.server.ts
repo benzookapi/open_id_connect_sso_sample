@@ -88,15 +88,7 @@ export interface AuthCodeData {
   createdAt: number;
 }
 
-export interface RefreshTokenData {
-  userId: string;
-  email: string;
-  clientId: string;
-  scope: string;
-}
-
 const authCodes = new Map<string, AuthCodeData>();
-const refreshTokens = new Map<string, RefreshTokenData>();
 
 export function storeAuthCode(code: string, data: AuthCodeData) {
   authCodes.set(code, data);
@@ -110,18 +102,4 @@ export function getAuthCode(code: string): AuthCodeData | undefined {
 
 export function deleteAuthCode(code: string) {
   authCodes.delete(code);
-}
-
-export function storeRefreshToken(token: string, data: RefreshTokenData) {
-  refreshTokens.set(token, data);
-  // Auto-delete after 24 hours (setTimeout max is ~24.8 days as a 32-bit signed integer)
-  setTimeout(() => refreshTokens.delete(token), 24 * 60 * 60 * 1000);
-}
-
-export function getRefreshToken(token: string): RefreshTokenData | undefined {
-  return refreshTokens.get(token);
-}
-
-export function deleteRefreshToken(token: string) {
-  refreshTokens.delete(token);
 }

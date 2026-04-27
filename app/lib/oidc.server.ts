@@ -1,5 +1,5 @@
-import { SignJWT } from "jose";
-import { getPrivateKey } from "./keys.server";
+import { SignJWT, jwtVerify } from "jose";
+import { getPrivateKey, getPublicKey } from "./keys.server";
 
 export function getBaseUrl(): string {
   return (process.env.BASE_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -84,4 +84,61 @@ export async function signAccessToken({
     .setIssuedAt(now)
     .setExpirationTime(now + 3600)
     .sign(key);
+}
+
+const REFRESH_TOKEN_TTL_SECS = 90 * 24 * 3600;
+
+export async function signRefreshToken({
+  sub,
+  email,
+  clientId,
+  scope,
+  issuer,
+}: {
+  sub: string;
+  email: string;
+  clientId: string;
+  scope: string;
+  issuer: string;
+}): Promise<string> {
+  const { key, kid } = await getPrivateKey();
+  const now = Math.floor(Date.now() / 1000);
+
+  return new SignJWT({ email, scope, token_use: "refresh" })
+    .setProtectedHeader({ alg: "RS256", kid })
+    .setIssuer(issuer)
+    .setAudience(clientId)
+    .setSubject(sub)
+    .setIssuedAt(now)
+    .setExpirationTime(now + REFRESH_TOKEN_TTL_SECS)
+    .sign(key);
+}
+
+export interface RefreshTokenClaims {
+  sub: string;
+  email: string;
+  clientId: string;
+  scope: string;
+}
+
+export async function verifyRefreshToken(
+  token: string,
+  issuer: string
+): Promise<RefreshTokenClaims | null> {
+  try {
+    const publicKey = await getPublicKey();
+    const { payload } = await jwtVerify(token, publicKey, { issuer });
+    const p = payload as Record<string, unknown>;
+    if (p.token_use !== "refresh") return null;
+    if (!payload.sub || !p.email || !payload.aud || !p.scope) return null;
+    const clientId = Array.isArray(payload.aud) ? payload.aud[0] : payload.aud;
+    return {
+      sub: payload.sub,
+      email: p.email as string,
+      clientId: clientId as string,
+      scope: p.scope as string,
+    };
+  } catch {
+    return null;
+  }
 }

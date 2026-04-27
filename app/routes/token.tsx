@@ -3,20 +3,18 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { createHash } from "crypto";
-import { v4 as uuidv4 } from "uuid";
 import {
   getBaseUrl,
   getClientId,
   getClientSecret,
   signIdToken,
   signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
 } from "~/lib/oidc.server";
 import {
   getAuthCode,
   deleteAuthCode,
-  storeRefreshToken,
-  getRefreshToken,
-  deleteRefreshToken,
   getShopifyClaimsProfile,
 } from "~/lib/store.server";
 
@@ -152,12 +150,11 @@ export async function action({ request }: ActionFunctionArgs) {
     const shopifyClaims = getShopifyClaimsProfile(userId);
     console.log("[token] shopifyClaims to embed:", JSON.stringify(shopifyClaims, null, 2));
 
-    const [idToken, accessToken] = await Promise.all([
+    const [idToken, accessToken, newRefreshToken] = await Promise.all([
       signIdToken({ sub: userId, email, clientId: client_id, nonce, issuer: baseUrl, shopifyClaims }),
       signAccessToken({ sub: userId, email, issuer: baseUrl }),
+      signRefreshToken({ sub: userId, email, clientId: client_id, scope, issuer: baseUrl }),
     ]);
-    const newRefreshToken = uuidv4();
-    storeRefreshToken(newRefreshToken, { userId, email, clientId: client_id, scope });
 
     const responseBody = {
       access_token: accessToken,
@@ -180,22 +177,18 @@ export async function action({ request }: ActionFunctionArgs) {
   if (grant_type === "refresh_token") {
     if (!refresh_token) return oidcError("invalid_request", "refresh_token is required");
 
-    const rtData = getRefreshToken(refresh_token);
+    const rtData = await verifyRefreshToken(refresh_token, baseUrl);
     if (!rtData) return oidcError("invalid_grant", "Invalid or expired refresh_token");
 
-    const { userId, email, scope } = rtData;
+    const { sub: userId, email, scope } = rtData;
     const shopifyClaims = getShopifyClaimsProfile(userId);
     console.log("[token] refresh shopifyClaims to embed:", JSON.stringify(shopifyClaims, null, 2));
 
-    const [idToken, accessToken] = await Promise.all([
+    const [idToken, accessToken, newRefreshToken] = await Promise.all([
       signIdToken({ sub: userId, email, clientId: client_id, issuer: baseUrl, shopifyClaims }),
       signAccessToken({ sub: userId, email, issuer: baseUrl }),
+      signRefreshToken({ sub: userId, email, clientId: client_id, scope, issuer: baseUrl }),
     ]);
-
-    // Rotate the refresh token
-    deleteRefreshToken(refresh_token);
-    const newRefreshToken = uuidv4();
-    storeRefreshToken(newRefreshToken, rtData);
 
     const refreshResponseBody = {
       access_token: accessToken,
