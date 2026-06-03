@@ -51,9 +51,14 @@ The identity provider should continue returning the same `sub` for the same pers
 
 Email is important because Shopify requires `email` and `email_verified` in the ID token, but email should not be the only permanent identity key in the identity provider.
 
+If the SSO system needs to change the customer's email address in Shopify, do not rely on returning the same `sub` with a different `email` claim during the next login. Shopify can continue authenticating the customer as the account already linked to that `sub`, and the new email address can be ignored for account-linking purposes.
+
+The recommended operational pattern is to detect the email change in the SSO system and update the corresponding Shopify customer through the Admin API. This keeps the Shopify customer record aligned before the next login and avoids treating email changes as an implicit relinking mechanism.
+
 Public reference:
 
 - [ID token claim import](https://shopify.dev/docs/api/customer-authentication/claim-import)
+- [Admin GraphQL `customerUpdate`](https://shopify.dev/docs/api/admin-graphql/latest/mutations/customerUpdate)
 
 ## Customer Data Sync
 
@@ -280,6 +285,18 @@ The token endpoint is called server-to-server, so Shopify can authenticate confi
 
 The authorization endpoint is reached through the customer's browser. Do not rely on a client secret at the browser-facing authorization endpoint. Instead, validate the redirect URI, state, client ID, and PKCE parameters as appropriate for the flow.
 
+### Why does OIDC login feel slow?
+
+Start by measuring the identity provider's `/token` response time. Shopify calls `/token` server-to-server while completing the login, so a slow token endpoint directly affects the customer experience.
+
+If `/token` responds quickly, temporarily disable customer data sync and compare the login behavior. This helps isolate whether claim import, overwrite behavior, address/tag payload size, or downstream customer updates are contributing to the delay.
+
+If the delay appears after Shopify returns the customer to the storefront or account surface, the bottleneck may be outside the OIDC exchange. Theme code, storefront customizations, third-party scripts, or account-page UI work can slow the first rendered page after login. Use browser DevTools or equivalent real-browser tracing to inspect redirects, network timing, JavaScript execution, and rendering.
+
+Public reference:
+
+- [Third-party identity provider requirements](https://help.shopify.com/en/manual/customers/customer-accounts/sign-in-options/identity-provider/requirements)
+
 ### Are refresh tokens required?
 
 For a good customer session experience, yes.
@@ -489,4 +506,3 @@ Test at least:
 - Shopify-hosted checkout login, if applicable
 - Customer support lookup and reconciliation workflows
 - Failure handling when the identity provider is unavailable
-
