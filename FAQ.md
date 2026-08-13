@@ -21,17 +21,81 @@ Public references:
 
 ### Is there an equivalent to `multipassIdentifier`?
 
-Not currently as a directly queryable customer field.
+OIDC uses the `sub` claim as the stable external identity.
 
-In OIDC, the stable external identity is represented by the `sub` claim. Shopify uses that subject during authentication, but partners should not assume there is a public Admin API field that can be queried the same way `multipassIdentifier` was used in some legacy integrations.
+Shopify exposes the identity provider subjects linked to a specific customer through `Customer.identityProviderSubjects`. Merchants can also view these links on the customer details page in Shopify Admin.
 
-If your integration needs to look up Shopify customers by an external system ID, plan an explicit mapping strategy. Common approaches include storing the external ID in a customer metafield, maintaining an external mapping table, or designing the integration around Shopify customer IDs after the first login.
+However, `sub` is not available as a customer search key. You cannot search for a customer by `sub` in Shopify Admin or through the Admin GraphQL API.
 
-### Can we query Shopify customers by OIDC `sub`?
+If operational workflows need reverse lookup from an external identity to a Shopify customer, maintain a separate mapping table or store the external identifier in an appropriate searchable data model.
 
-Do not design the integration around querying Shopify customers by OIDC `sub`.
+Public reference:
 
-Use `sub` as the identity provider's stable subject for authentication. For operational lookups, reconciliation, CRM sync, order history display, or customer service workflows, use a separate mapping that your integration owns.
+- [Customer.identityProviderSubjects](https://shopify.dev/docs/api/admin-graphql/latest/objects/Customer#field-Customer.fields.identityProviderSubjects)
+
+### Can we search for a Shopify customer by OIDC `sub`?
+
+No. Shopify Admin and the Admin GraphQL API do not provide customer search by OIDC `sub`.
+
+If you already know the Shopify customer ID, you can query that customer and inspect `identityProviderSubjects` to retrieve the linked provider name and subject.
+
+This is a customer-to-`sub` lookup, not a `sub`-to-customer lookup. Integrations that require reverse lookup should maintain their own mapping between the identity provider subject and Shopify customer ID.
+
+Public reference:
+
+- [Customer.identityProviderSubjects](https://shopify.dev/docs/api/admin-graphql/latest/objects/Customer#field-Customer.fields.identityProviderSubjects)
+
+### Can merchants view the OIDC `sub` linked to a customer?
+
+Yes.
+
+On the customer details page in Shopify Admin, merchants can view the identity provider links associated with that customer. The Admin GraphQL API also exposes them through `Customer.identityProviderSubjects`.
+
+Reading identity provider subjects through the Admin GraphQL API requires the `read_customers` access scope.
+
+Each identity provider subject includes:
+
+- The identity provider subject ID
+- The provider name
+- The `sub` value
+- The creation and update timestamps
+
+A customer can have more than one identity provider subject when multiple identity providers are linked.
+
+Public reference:
+
+- [IdentityProviderSubject](https://shopify.dev/docs/api/admin-graphql/latest/objects/IdentityProviderSubject)
+
+### Can merchants unlink an OIDC `sub` from a customer?
+
+Yes.
+
+Merchants can unlink an identity provider subject from the customer details page in Shopify Admin. The Admin GraphQL API also provides the `identityProviderSubjectDelete` mutation, which requires both the Shopify customer ID and the ID of the `IdentityProviderSubject` record.
+
+Unlinking removes the association between the Shopify customer and that identity provider subject. It does not delete the Shopify customer, delete the account in the identity provider, or change the `sub` value in the identity provider.
+
+Because this operation affects account linking and future authentication, verify the customer, provider name, and subject before unlinking, and keep an audit trail for operational use.
+
+The mutation requires the `write_customers` access scope and is currently available only in the `unstable` Admin API version. Confirm its version status before using it in production.
+
+Public reference:
+
+- [Admin GraphQL `identityProviderSubjectDelete`](https://shopify.dev/docs/api/admin-graphql/unstable/mutations/identityProviderSubjectDelete)
+
+### Can Shopify directly change a linked OIDC `sub`?
+
+No direct update operation is currently documented.
+
+Shopify provides an unlink operation rather than an operation that edits the subject value. The `sub` itself is owned and issued by the identity provider.
+
+If a link needs to be replaced, first investigate why the identity changed. After confirming the correct customer and identity, unlink the incorrect association and follow the approved authentication and relinking process.
+
+Do not use unlinking as a routine way to rotate or modify `sub` values. A production identity provider should issue a stable, non-recycled `sub`.
+
+Public references:
+
+- [IdentityProviderSubject](https://shopify.dev/docs/api/admin-graphql/latest/objects/IdentityProviderSubject)
+- [Admin GraphQL `identityProviderSubjectDelete`](https://shopify.dev/docs/api/admin-graphql/unstable/mutations/identityProviderSubjectDelete)
 
 ### What should we use as the OIDC `sub`?
 
@@ -44,6 +108,8 @@ The `sub` value should not be an email address if the identity provider allows e
 No. Treat `sub` uniqueness as a security requirement.
 
 Reusing the same `sub` for different people can cause account-linking problems. A production identity provider should guarantee that one subject represents one customer identity.
+
+If an incorrect identity link is discovered, merchants can inspect and unlink the identity provider subject from the affected customer. This is a recovery operation and does not make reusing `sub` values safe. The identity provider must still guarantee that each `sub` represents exactly one customer identity.
 
 ### What happens if a customer changes their email address?
 
