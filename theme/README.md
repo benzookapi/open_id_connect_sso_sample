@@ -83,7 +83,7 @@ The standard New Customer Accounts login UI is used as-is; only the post-login r
 
 The current form only redirects customers to login. It does not save the name or terms acceptance.
 
-Both patterns below keep `/pages/custom-login-page` and send update requests through App Proxy. The proxy provides a same-origin URL and a signed `logged_in_customer_id`. The main difference is the API and token used by the app.
+Both patterns below keep `/pages/custom-login-page` and send update requests through [App Proxy](https://shopify.dev/docs/apps/build/online-store/app-proxies). The proxy provides a same-origin URL and a signed `logged_in_customer_id`. The main difference is the API and token used by the app.
 
 Customer Account API does not require App Proxy by itself. This design uses it so the app can keep customer tokens server-side and avoid a separate browser CORS integration.
 
@@ -157,7 +157,7 @@ sequenceDiagram
 
 **Cons:** per-customer token storage, refresh handling, and an additional OAuth flow.
 
-### Pattern 2 — App Proxy + Admin API
+### Pattern 2 — Admin API
 
 #### Login and initial display
 
