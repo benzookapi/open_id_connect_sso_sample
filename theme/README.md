@@ -85,92 +85,162 @@ The registration form in `custom_liquid_for_custom_login_page.liquid` (last name
 
 No event or API access token is automatically delivered to this Liquid page after login. To persist the form data, choose an explicit integration pattern. The two app-based patterns below are useful when demonstrating a custom account page that replaces or extends Shopify's standard account experience.
 
-### Pattern 1 — Customer Account API for an external account page
+### Pattern 1 — Customer Account API with the same Liquid page
 
-Use this pattern when the account page is hosted outside the Shopify theme and needs ongoing customer-scoped access to profile, address, or order data.
+Use this pattern when the account experience remains on `/pages/custom-login-page`, but profile updates should use a customer-scoped Customer Account API token instead of an Admin API token.
 
-For this pattern, change the account link to the external account application. The application should start the Customer Account API authorization flow when it does not already have a valid customer session. Link to an app-controlled start endpoint rather than hard-coding Shopify's authorization endpoint, because the app must perform endpoint discovery and generate per-request `state` and `nonce` values, plus PKCE values for a public client.
+Change the account link to an app-controlled Customer Account API authorization-start endpoint. Do not hard-code Shopify's authorization endpoint in Liquid, because the app must perform endpoint discovery and generate per-request `state` and `nonce` values, plus PKCE values for a public client. Shopify still provides the hosted customer login experience and delegates authentication to the configured identity provider when required.
+
+#### Login and initial page render
 
 ```mermaid
 sequenceDiagram
     participant Customer
-    participant Page as External account page
-    participant App as Account app backend
-    participant Shopify
+    participant App as App backend
+    participant Shopify as Shopify authentication
     participant IdP as Identity provider
+    participant API as Customer Account API
+    participant Page as Custom Liquid page
 
-    Customer->>Page: Open custom account page
-    Page->>App: Submit registration draft and start authorization
-    App->>Shopify: Authorization request
+    Customer->>App: Open Customer Account API authorization-start URL
+    App-->>Customer: Redirect to discovered authorization endpoint
+    Customer->>Shopify: Follow authorization request
     Shopify->>IdP: Authenticate customer if required
     IdP-->>Shopify: Authentication result
-    Shopify-->>App: Authorization code callback
+    Shopify-->>Customer: Redirect with authorization code
+    Customer->>App: Open application callback
     App->>Shopify: Exchange code for access and refresh tokens
-    App->>Shopify: customerUpdate / customerAddressCreate
-    App-->>Page: Create app session and redirect
+    App->>API: Query current customer ID
+    App->>App: Store tokens by shop and customer ID
+    App-->>Customer: Redirect through storefront login with return_to
+    Customer->>Shopify: Follow storefront login redirect
+    Shopify-->>Customer: Return to custom Liquid page
+    Customer->>Page: Request page with storefront session
+    Page-->>Customer: Render customer data with Liquid
 ```
 
-The app should store pending name, address, and consent data server-side under a short-lived opaque flow ID before redirecting the customer. Do not put personal data in the OAuth `state` value or query string. After the callback, use the Customer Account API access token to update only the authenticated customer's data. If the external account page continues to use the API, keep token refresh and expiry handling in the backend where possible.
+The final redirect should pass through the storefront login route, for example `/customer_authentication/login?return_to=/pages/custom-login-page`, before returning to the Liquid page. The hosted customer session should normally let Shopify reuse the completed authentication without asking for credentials again. This explicitly establishes the storefront session required by Liquid's `customer` object; do not assume that returning directly from the app callback to the page will always populate that object without testing the complete store configuration.
+
+The app should query the current customer through the Customer Account API after token exchange and store the access and refresh tokens server-side under the shop and customer ID. This mapping lets a later signed App Proxy request select the correct token without exposing it to Liquid or browser JavaScript.
+
+#### Update after the customer submits the Liquid form
+
+```mermaid
+sequenceDiagram
+    participant Customer
+    participant Page as Custom Liquid page
+    participant Shopify as Shopify App Proxy
+    participant App as App backend
+    participant API as Customer Account API
+
+    Customer->>Page: Edit profile and select Update
+    Page->>Shopify: POST form data to App Proxy URL
+    Shopify->>App: Forward body and signed logged_in_customer_id
+    App->>App: Verify signature and load the customer's tokens
+    App->>API: Refresh token if required
+    App->>API: customerUpdate / customerAddressCreate
+    API-->>App: Updated customer or user errors
+    App-->>Shopify: Return proxy response
+    Shopify-->>Page: Return success or validation error
+    Page->>Page: Reload to refresh Liquid-rendered data
+```
+
+An HTTP-only cookie cannot be read by JavaScript; that is its security purpose. The HTTP-only cookie pattern in Shopify's headless examples works because the page and backend belong to the same application origin. In this theme pattern, the Liquid page and app callback normally use different origins, cross-site cookie delivery is not reliable, and App Proxy strips `Cookie` and `Set-Cookie` headers. Use the signed `logged_in_customer_id` from App Proxy to locate the server-side token instead. A same-site first-party app domain can support a cookie-based BFF, but that should be treated as a merchant-specific deployment option rather than the portable sample design.
+
+Choose one of two token-handling models; do not combine them:
+
+- **Server-side BFF (shown above):** The app keeps the Customer Account API tokens and the Liquid page calls the App Proxy. Browser JavaScript never receives the access token.
+- **Public browser client:** Register the storefront as an allowed JavaScript origin, use Authorization Code + PKCE in the browser, and let JavaScript hold the Customer Account API token and call the Customer Account API endpoint directly. This makes an HTTP-only server session impossible for that token and increases the impact of theme JavaScript or XSS vulnerabilities.
 
 **Pros**
 
-- Provides customer-scoped access designed for an external or headless account experience.
-- The access token represents the current customer, so the browser does not need to supply a Shopify customer ID.
-- The same authenticated experience can support profile, address, and order features beyond the initial registration update.
+- Keeps the presentation in the same Liquid page while using customer-scoped authorization for updates.
+- The Customer Account API token is bound to the current customer and does not grant broad Admin API access.
 - Does not consume the GraphQL Admin API's shared query-cost budget.
+- Can be extended to customer-scoped profile, address, and order operations.
 
 **Cons**
 
-- Requires a separate OAuth 2.0 authorization-code flow, endpoint discovery, callback handling, `state` and `nonce` validation, and PKCE for public clients.
-- Requires secure access-token and refresh-token lifecycle management, including expiry, refresh, logout, and error recovery.
-- Adds redirects even when an existing Shopify customer session allows the visible login step to be skipped.
-- Requires a strategy for carrying the pre-login registration draft across storefront, Shopify, identity-provider, and application origins.
-- Remains subject to Customer Account API access requirements and service limits; it is not an unlimited alternative to the Admin API.
+- Requires OAuth endpoint discovery, callback handling, token exchange, token refresh, logout, expiry handling, and secure token storage for each customer.
+- Requires an explicit mapping between the Customer Account API identity and the signed storefront `logged_in_customer_id`.
+- Uses an additional storefront-login bridge to ensure the Liquid `customer` session is available.
+- Still needs an App Proxy or another trustworthy BFF channel for updates when tokens remain server-side.
+- Remains subject to Customer Account API access requirements and service limits.
 
 ### Pattern 2 — App Proxy with the Admin API
 
-Use this pattern when the custom page remains in the Shopify theme and only needs a small number of server-side operations, such as saving the registration form after login. The existing `/customer_authentication/login` link and `return_to` behavior can remain unchanged.
+Use this pattern when the same Liquid page needs only a small number of controlled updates and the app can hold an Admin API token. The existing `/customer_authentication/login` link and `return_to` behavior remain unchanged.
+
+#### Login and initial page render
 
 ```mermaid
 sequenceDiagram
     participant Customer
-    participant Page as Liquid page
-    participant Shopify
-    participant Proxy as App Proxy backend
-    participant Admin as GraphQL Admin API
+    participant Shopify as Shopify authentication
+    participant IdP as Identity provider
+    participant Page as Custom Liquid page
 
-    Customer->>Shopify: Sign in through /customer_authentication/login
-    Shopify-->>Page: Return to custom Liquid page
-    Page->>Shopify: POST pending data to App Proxy URL
-    Shopify->>Proxy: Forward body and signed logged_in_customer_id
-    Proxy->>Proxy: Verify signature, timestamp, and customer ID
-    Proxy->>Admin: customerUpdate for logged-in customer
-    Admin-->>Proxy: Updated customer or user errors
-    Proxy-->>Page: Success or validation error
+    Customer->>Shopify: Open /customer_authentication/login
+    Shopify->>IdP: Authenticate customer if required
+    IdP-->>Shopify: Authentication result
+    Shopify-->>Customer: Return to custom Liquid page
+    Customer->>Page: Request page with storefront session
+    Page-->>Customer: Render customer data with Liquid
 ```
 
-After the customer returns, JavaScript can read the pending values from `sessionStorage` and submit them to an App Proxy URL. Shopify adds a signed `logged_in_customer_id` parameter when the storefront customer is logged in. The app must verify the proxy signature and timestamp, reject requests with no logged-in customer, and ignore any customer ID supplied in the request body. Treat `sessionStorage` only as an untrusted user-input buffer.
+#### Update after the customer submits the Liquid form
+
+```mermaid
+sequenceDiagram
+    participant Customer
+    participant Page as Custom Liquid page
+    participant Shopify as Shopify App Proxy
+    participant App as App backend
+    participant Admin as GraphQL Admin API
+
+    Customer->>Page: Edit profile and select Update
+    Page->>Shopify: POST form data to App Proxy URL
+    Shopify->>App: Forward body and signed logged_in_customer_id
+    App->>App: Verify signature, timestamp, and customer ID
+    App->>Admin: customerUpdate for logged-in customer
+    Admin-->>App: Updated customer or user errors
+    App-->>Shopify: Return proxy response
+    Shopify-->>Page: Return success or validation error
+    Page->>Page: Reload to refresh Liquid-rendered data
+```
+
+Shopify adds a signed `logged_in_customer_id` parameter when the storefront customer is logged in. The app must verify the proxy signature and timestamp, reject requests with no logged-in customer, and ignore any customer ID supplied in the request body. Treat all browser-submitted values as untrusted input.
 
 **Pros**
 
-- Keeps the current Shopify login link and avoids a second customer-facing OAuth token flow.
+- Keeps the current Shopify login link and requires no separate Customer Account API OAuth flow.
 - Is simpler for one-time profile updates and other narrowly scoped server-side actions.
-- Keeps the Admin API token on the app backend and allows centralized validation, consent recording, and retry handling.
+- Needs one app-level Admin API credential instead of storing and refreshing a token for every customer.
 - Can update Admin-only customer data when the app has the required scopes and protected customer data access.
 
 **Cons**
 
-- Requires an installed app, secure Admin API credential storage, `write_customers`, and any required protected customer data approval.
+- Requires secure Admin API credential storage, the required customer scopes such as `read_customers` and `write_customers`, and any required protected customer data approval.
 - Uses the GraphQL Admin API's calculated query-cost budget for the app-store combination. Traffic bursts can be throttled and can compete with the app's other Admin API operations, so the app needs backoff, retry, and idempotency handling.
 - Grants broader administrative capability than a customer-scoped token, increasing the impact of an app-backend credential compromise.
 - Requires strict authorization checks so a customer can update only the record identified by the signed `logged_in_customer_id`.
-- App Proxy requests do not support application cookies, so the backend cannot depend on a normal cookie session behind the proxy.
+- App Proxy strips application cookies, so identity must come from verified proxy parameters rather than a proxy cookie session.
+
+### Do not mix Customer Account API and Storefront API tokens
+
+The proposed `public Storefront API token + Customer Account API access token` request is not a valid authentication combination:
+
+- Customer Account API profile operations must be sent to the discovered **Customer Account API GraphQL endpoint** with the Customer Account API OAuth access token.
+- In the Headless channel, distinguish the Customer Account API **client ID** used in the OAuth request from a Storefront API public access token. They are separate credentials for separate APIs.
+- A Storefront API public access token is sent as `X-Shopify-Storefront-Access-Token` and authorizes access to the Storefront API. It does not convert a Customer Account API token into a Storefront API customer token.
+- Storefront API customer mutations use a separate Storefront `CustomerAccessToken` from the legacy customer-token flow. It is not interchangeable with a Customer Account API OAuth token and should not be introduced for a New Customer Accounts implementation.
+- A public Storefront API token can be exposed to browser JavaScript when the page separately needs Storefront API product, collection, or cart data. It is not needed for the profile update flows documented here, so storing it in a shop metafield adds configuration without solving customer authentication.
 
 ### Which pattern fits this sample?
 
 For a production deployment of this OIDC provider sample, **OIDC claim import is the preferred option when the identity provider is the system of record for the customer's name and address**. Save the profile in the identity provider and return the supported claims during login, with Shopify's **Sync customer data** setting enabled. This avoids an additional Customer Account API authorization flow or an Admin API write after login.
 
-For a demonstration whose goal is to replace Shopify's standard account page with an externally hosted account experience, **Pattern 1 is the better architectural example**. It gives the external page a customer-scoped API session and supports a complete account experience. Pattern 2 is a simpler alternative when the page remains in the theme and only needs a few controlled updates.
+For a demonstration of a custom Liquid account page, **Pattern 1 demonstrates the customer-scoped Customer Account API architecture**, but it is materially more complex because it combines two Shopify session surfaces and per-customer token management. Pattern 2 is the simpler demonstration when the goal is only to update a few customer fields from the same Liquid page.
 
 Terms acceptance should be stored with its version and timestamp in an appropriate application record or approved Shopify data model. A checkbox value in `sessionStorage` is not a durable consent record.
 
@@ -213,8 +283,10 @@ These theme snippets do not implement any of these persistence patterns. They de
 | Login with Shopify themes | https://shopify.dev/docs/storefronts/themes/login |
 | Hydrogen with Account Component (BYOS) | https://shopify.dev/docs/storefronts/headless/bring-your-own-stack/hydrogen-with-account-component |
 | Customer Account API authentication | https://shopify.dev/docs/api/customer/latest |
+| Authenticate customers with the Customer Account API | https://shopify.dev/docs/storefronts/headless/building-with-the-customer-account-api/authenticate-customers |
 | Customer Account API `customerUpdate` | https://shopify.dev/docs/api/customer/latest/mutations/customerUpdate |
 | Customer Account API `customerAddressCreate` | https://shopify.dev/docs/api/customer/latest/mutations/customerAddressCreate |
+| Storefront API authentication | https://shopify.dev/docs/api/storefront/latest |
 | Authenticate App Proxy requests | https://shopify.dev/docs/apps/build/online-store/app-proxies/authenticate-app-proxies |
 | GraphQL Admin API `customerUpdate` | https://shopify.dev/docs/api/admin-graphql/latest/mutations/customerUpdate |
 | Shopify API rate limits | https://shopify.dev/docs/api/usage/limits#rate-limits |
