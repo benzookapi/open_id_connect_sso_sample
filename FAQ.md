@@ -115,9 +115,9 @@ If an incorrect identity link is discovered, merchants can inspect and unlink th
 
 The identity provider should continue returning the same `sub` for the same person, even if the email address changes.
 
-Email is important because Shopify requires `email` and `email_verified` in the ID token, but email should not be the only permanent identity key in the identity provider.
+Shopify requires `email` and `email_verified` in the ID token. When no subject link exists for the identity provider, Shopify uses the verified email to find or create a customer and links the provider's `sub` to that customer. After linking, subsequent logins identify the customer through the existing provider-and-`sub` association, rather than matching the email again on every login.
 
-If the SSO system needs to change the customer's email address in Shopify, do not rely on returning the same `sub` with a different `email` claim during the next login. Shopify can continue authenticating the customer as the account already linked to that `sub`, and the new email address can be ignored for account-linking purposes.
+Returning the same `sub` with a different `email` claim continues authenticating the customer as the account already linked to that subject. It does not switch accounts or automatically update the Shopify customer's email address.
 
 The recommended operational pattern is to detect the email change in the SSO system and update the corresponding Shopify customer through the Admin API. This keeps the Shopify customer record aligned before the next login and avoids treating email changes as an implicit relinking mechanism.
 
